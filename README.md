@@ -33,7 +33,6 @@ Nail diseases such as **Onychomycosis** and **Psoriasis** are clinically challen
 - [Project Structure](#-project-structure)
 - [Key Design Decisions](#-key-design-decisions)
 - [Novelty](#-novelty)
-- [Citation](#-citation)
 
 ---
 
@@ -44,7 +43,7 @@ Nail diseases such as **Onychomycosis** and **Psoriasis** are clinically challen
 
 | Split | Healthy | Onychomycosis | Psoriasis | Total |
 |-------|---------|---------------|-----------|-------|
-| Train | — | — | — | — |
+| Train | 248 | 575| 342| 1165 |
 | Test  | 62 | 146 | 91 | **299** |
 
 nail_disease_dataset/
