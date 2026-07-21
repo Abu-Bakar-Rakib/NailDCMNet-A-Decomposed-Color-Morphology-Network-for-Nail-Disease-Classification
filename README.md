@@ -363,40 +363,6 @@ print(f"{'='*50}")
 
 ---
 
-## 🗂️ Project Structure
-
-```
-NailDCMNet/
-├── README.md                      # This file
-├── requirements.txt               # Python dependencies
-├── NailDCMNet_Training.ipynb      # Full training pipeline
-├── NailDCMNet_Inference.ipynb     # Inference demo
-│
-├── models/
-│   └── nail_dcm_net.py            # Architecture definition
-│
-├── utils/
-│   ├── data_loader.py             # Dataset utilities
-│   ├── metrics.py                 # Evaluation metrics
-│   ├── visualization.py           # Plotting & XAI
-│   └── augmentation.py            # Data augmentation
-│
-├── checkpoints/
-│   └── NailDCMNet_best.pt         # Best model weights
-│
-└── dataset/                       # Download from Kaggle
-    ├── train/
-    │   ├── healthy/
-    │   ├── onychomycosis/
-    │   └── psoriasis/
-    └── test/
-        ├── healthy/
-        ├── onychomycosis/
-        └── psoriasis/
-```
-
----
-
 ## 🔑 Key Design Decisions
 
 | Decision | Rationale |
@@ -439,21 +405,6 @@ NailDCMNet/
 - Enables trust and clinical integration
 
 ---
-
-## 📚 Citation
-
-If you use NailDCMNet in your research, please cite:
-
-```bibtex
-@article{nailDCMNet2024,
-  author    = {Abu Bakar Rakib},
-  title     = {NailDCMNet: A Decomposed Color-Morphology Network for Nail Disease Classification},
-  year      = {2024},
-  publisher = {GitHub},
-  url       = {https://github.com/Abu-Bakar-Rakib/NailDCMNet}
-}
-```
-
 ---
 
 ## 📬 Contact & Support
@@ -466,7 +417,7 @@ If you use NailDCMNet in your research, please cite:
 
 📍 Dhaka, Bangladesh  
 🔗 [GitHub](https://github.com/Abu-Bakar-Rakib)  
-📧 [Email](mailto:abubakarrakib.cse@gmail.com)
+📧 [Email](mailto:rakibcdp@gmail.com)
 
 **Questions or Feedback?**  
 Open an issue on [GitHub Issues](https://github.com/Abu-Bakar-Rakib/NailDCMNet/issues)
