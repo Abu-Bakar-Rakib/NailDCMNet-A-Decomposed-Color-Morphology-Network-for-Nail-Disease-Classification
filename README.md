@@ -112,10 +112,10 @@ INPUT IMAGE [B, 3, 224, 224]
 │
 ▼
 ┌─────────────────────────────────────────┐
-│ STAGE 1 — Nail Region Focus (NRF)      │
-│ Learnable soft mask M                  │
-│ X_f = X ⊙ (0.7·M + 0.3)               │
-│ [Suppresses background interference]   │
+│ STAGE 1 — Nail Region Focus (NRF)       │
+│ Learnable soft mask M                   │
+│ X_f = X ⊙ (0.7·M + 0.3)                │
+│ [Suppresses background interference]    │
 └──────────────────┬──────────────────────┘
 │
 ┌───────────┼───────────┐
@@ -136,23 +136,23 @@ INPUT IMAGE [B, 3, 224, 224]
                   ▼                │
          ┌───────────────────────┐ │
          │ Cross-Attention A→B   │ │
-         │ Q=Fb, K=Fa, V=Fa     │ │
-         │ Fb* = LN(Fb + Attn)  │ │
+         │ Q=Fb, K=Fa, V=Fa      │ │
+         │ Fb* = LN(Fb + Attn)   │ │
          └───────────┬───────────┘ │
                      │Fb*          │Fc
                      └────────┬────────┘
                               ▼
                  ┌─────────────────────────┐
                  │ Cross-Attention B*→C    │
-                 │ Q=Fc, K=Fb*, V=Fb*    │
-                 │ Fc* = LN(Fc + Attn)   │
+                 │ Q=Fc, K=Fb*, V=Fb*      │
+                 │ Fc* = LN(Fc + Attn)     │
                  └────────────┬────────────┘
                               │
                               ▼
                  ┌────────────────────────────────┐
                  │ Adaptive Stream Weighting      │
-                 │ w = Softmax(Linear(GAP))      │
-                 │ F_w = w₁·Fa + w₂·Fb* + w₃·Fc*│
+                 │ w = Softmax(Linear(GAP))       │
+                 │ F_w = w₁·Fa + w₂·Fb* + w₃·Fc*  │
                  └───────────┬────────────────────┘
                              │
                              ▼
@@ -201,7 +201,7 @@ $$\mathcal{L}_{total} = \mathcal{L}_{cls} + 0.10 \cdot \mathcal{L}_{sev} + 0.05 
 | **Early Stopping** | patience=7 on validation loss |
 | **Precision** | Mixed Precision (AMP FP16) |
 | **Input Resolution** | 224×224 |
-| **Hardware** | Single NVIDIA T4 GPU |
+| **Hardware** |  NVIDIA T4x2 free GPU |
 
 ---
 
