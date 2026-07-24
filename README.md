@@ -114,11 +114,11 @@ INPUT IMAGE [B, 3, 224, 224]
 ┌─────────────────────────────────────────────────────┐
 │ STAGE 1 — Nail Region Focus (NRF)                   │
 │ Conv2d(3→16, k=3, p=1) → ReLU                       │
-│ Conv2d(16→8, k=3, p=1) → ReLU                        │
-│ Conv2d(8→1, k=1) → Sigmoid                           │
+│ Conv2d(16→8, k=3, p=1) → ReLU                       │
+│ Conv2d(8→1, k=1) → Sigmoid                          │
 │                                                     │
 │ M ∈ [0,1]^{B,1,224,224}                             │
-│ X_f = X ⊙ (0.7·M + 0.3)                             │
+│ X_f = X ⊙ (0.7·M + 0.3)                            │
 │ [Suppresses background; learnable gate α=0.7]       │
 └──────────────────────┬──────────────────────────────┘
                        │
@@ -138,7 +138,7 @@ INPUT IMAGE [B, 3, 224, 224]
 │              │ │ → pooled     │ │              │
 │ Proj:        │ │              │ │              │
 │ Conv2d(768→  │ │ Proj:        │ │ Proj:        │
-│   256,1×1)   │ │ Conv2d(960→ │ │ Conv2d(768→  │
+│   256,1×1)   │ │ Conv2d(960→  │ │ Conv2d(768→  │
 │ GroupNorm(16)│ │   256,1×1)   │ │   256,1×1)   │
 │ GELU         │ │ GroupNorm(16)│ │ GroupNorm(16)│
 │              │ │ GELU         │ │ GELU         │
@@ -149,16 +149,16 @@ INPUT IMAGE [B, 3, 224, 224]
 │ → 7×7 adapt  │ │ → 7×7 adapt  │ │ → 7×7 adapt  │
 │              │ │              │ │              │
 │ Output:      │ │ Output:      │ │ Output:      │
-│ Fa [B,256,7,7]│ │ Fb [B,256,7,7]│ │ Fc [B,256,7,7]│
+│Fa [B,256,7,7]│ │Fb [B,256,7,7]│ │Fc [B,256,7,7]│
 └──────┬───────┘ └──────┬───────┘ └──────┬───────┘
-       │               │               │
-       │               │               │
-       └───────────────┼───────────────┘
+       │                │                │
+       │                │                │
+       └────────────── ─┼───────────────┘
                        ▼
         ┌──────────────────────────────────┐
         │ STAGE 3 — Cross-Stream Attention │
         │                                  │
-        │ CrossStreamAttn(dim=256, heads=4) │
+        │ CrossStreamAttn(dim=256, heads=4)│
         │                                  │
         │ Fb* = xAB(Fb, Fa)                │
         │   Q=Fb (Texture)                 │
@@ -188,17 +188,17 @@ INPUT IMAGE [B, 3, 224, 224]
                       │
                       ▼
          ┌──────────────────────────────┐
-         │ STAGE 4B — Dual Attention Gate│
-         │        (with RESIDUAL + Fw)   │
+         │STAGE 4B — Dual Attention Gate│
+         │       (with RESIDUAL + Fw)   │
          │                              │
          │ F_ch = ChannelAttention(F_w) │
          │ F_sp = SpatialAttention(F_w) │
          │                              │
-         │ Cat([F_ch, F_sp]) → Conv2d(512→256,1×1) │
-         │ GroupNorm(16,256) → GELU      │
+         │Cat([F_ch, F_sp]) → Conv2d(512→256,1×1) │
+         │ GroupNorm(16,256) → GELU     │
          │                              │
-         │ F_g = GateProj + F_w          │
-         │       [B,256,7,7]             │
+         │ F_g = GateProj + F_w         │
+         │       [B,256,7,7]            │
          └────────────┬─────────────────┘
                       │
                       ▼
@@ -212,11 +212,11 @@ INPUT IMAGE [B, 3, 224, 224]
          │ Concat([R₁,R₂,R₃]) → [B,768] │
          │                              │
          │ Linear(768 → 256) → GELU     │
-         │ Dropout(p=0.4)                │
+         │ Dropout(p=0.4)               │
          │ Linear(256 → 128) → GELU     │
-         │ Dropout(p=0.3)                │
+         │ Dropout(p=0.3)               │
          │                              │
-         │ z → [B,128]                   │
+         │ z → [B,128]                  │
          └──────┬─────────────┬──────────┘
                 │             │
                 ▼             ▼
