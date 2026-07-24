@@ -111,71 +111,135 @@ nail_disease_dataset/
 INPUT IMAGE [B, 3, 224, 224]
 │
 ▼
-┌─────────────────────────────────────────┐
-│ STAGE 1 — Nail Region Focus (NRF)       │
-│ Learnable soft mask M                   │
-│ X_f = X ⊙ (0.7·M + 0.3)                │
-│ [Suppresses background interference]    │
-└──────────────────┬──────────────────────┘
-│
-┌───────────┼───────────┐
-▼ ▼ ▼
-┌────────────┐ ┌────────────┐ ┌────────────┐
-│ STREAM A   │ │ STREAM B   │ │ STREAM C   │
-│   COLOR    │ │  TEXTURE   │ │ MORPHOLOGY │
-│            │ │            │ │            │
-│ConvNeXtV2  │ │MobileNetV3 │ │Swin-Tiny   │
-│  -Tiny     │ │  -Large    │ │            │
-│            │ │            │ │            │
-│ SE Block   │ │ CBAM       │ │ CBAM       │
-│ r=16       │ │            │ │            │
-│[B,256,7,7] │ │[B,256,7,7] │ │[B,256,7,7] │
-└─────┬──────┘ └─────┬──────┘ └─────┬──────┘
-      │Fa           │Fb            │Fc
-      └───────────┬──┘             │
-                  ▼                │
-         ┌───────────────────────┐ │
-         │ Cross-Attention A→B   │ │
-         │ Q=Fb, K=Fa, V=Fa      │ │
-         │ Fb* = LN(Fb + Attn)   │ │
-         └───────────┬───────────┘ │
-                     │Fb*          │Fc
-                     └────────┬────────┘
-                              ▼
-                 ┌─────────────────────────┐
-                 │ Cross-Attention B*→C    │
-                 │ Q=Fc, K=Fb*, V=Fb*      │
-                 │ Fc* = LN(Fc + Attn)     │
-                 └────────────┬────────────┘
-                              │
-                              ▼
-                 ┌────────────────────────────────┐
-                 │ Adaptive Stream Weighting      │
-                 │ w = Softmax(Linear(GAP))       │
-                 │ F_w = w₁·Fa + w₂·Fb* + w₃·Fc*  │
-                 └───────────┬────────────────────┘
-                             │
-                             ▼
-                 ┌────────────────────────────────┐
-                 │ STAGE 4 — Dual Attention Gate  │
-                 │ Channel Gate (SE-style)        │
-                 │ Spatial Gate (CBAM-style)      │
-                 │ F_g = gate_proj([F_ch;F_sp])  │
-                 └───────────┬────────────────────┘
-                             │
-                             ▼
-                 ┌────────────────────────────────┐
-                 │ STAGE 5 — Multi-Pool Agg.      │
-                 │ GlobalAvgPool [global]         │
-                 │ GlobalMaxPool [peak]           │
-                 │ StdPool [contrast]             │
-                 └───────────┬────────────────────┘
-                             │
-                 ┌───────────┴───────────┐
-                 ▼                       ▼
-            [3-class]              [severity]
-           Classification        (train-time only)
-          Softmax Output
+┌─────────────────────────────────────────────────────┐
+│ STAGE 1 — Nail Region Focus (NRF)                   │
+│ Conv2d(3→16, k=3, p=1) → ReLU                       │
+│ Conv2d(16→8, k=3, p=1) → ReLU                        │
+│ Conv2d(8→1, k=1) → Sigmoid                           │
+│                                                     │
+│ M ∈ [0,1]^{B,1,224,224}                             │
+│ X_f = X ⊙ (0.7·M + 0.3)                             │
+│ [Suppresses background; learnable gate α=0.7]       │
+└──────────────────────┬──────────────────────────────┘
+                       │
+                       ▼
+         ┌─────────────┼─────────────┐
+         ▼             ▼             ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│  STREAM A    │ │  STREAM B    │ │  STREAM C    │
+│    COLOR     │ │   TEXTURE    │ │  MORPHOLOGY  │
+│              │ │              │ │              │
+│ ConvNeXtV2   │ │ MobileNetV3  │ │ Swin-Tiny    │
+│ -Tiny        │ │ -Large       │ │              │
+│ (pretrained) │ │ (pretrained) │ │ (pretrained) │
+│              │ │              │ │              │
+│ features:    │ │ features:    │ │ features:    │
+│ [B,768,7,7]  │ │ [B,960,5,5]  │ │ [B,768,7,7]  │
+│              │ │ → pooled     │ │              │
+│ Proj:        │ │              │ │              │
+│ Conv2d(768→  │ │ Proj:        │ │ Proj:        │
+│   256,1×1)   │ │ Conv2d(960→ │ │ Conv2d(768→  │
+│ GroupNorm(16)│ │   256,1×1)   │ │   256,1×1)   │
+│ GELU         │ │ GroupNorm(16)│ │ GroupNorm(16)│
+│              │ │ GELU         │ │ GELU         │
+│              │ │              │ │              │
+│ ChannelAttn  │ │ SpatialAttn  │ │ SpatialAttn  │
+│ (SE, r=16)   │ │ (CBAM-style) │ │ (CBAM-style) │
+│              │ │              │ │              │
+│ → 7×7 adapt  │ │ → 7×7 adapt  │ │ → 7×7 adapt  │
+│              │ │              │ │              │
+│ Output:      │ │ Output:      │ │ Output:      │
+│ Fa [B,256,7,7]│ │ Fb [B,256,7,7]│ │ Fc [B,256,7,7]│
+└──────┬───────┘ └──────┬───────┘ └──────┬───────┘
+       │               │               │
+       │               │               │
+       └───────────────┼───────────────┘
+                       ▼
+        ┌──────────────────────────────────┐
+        │ STAGE 3 — Cross-Stream Attention │
+        │                                  │
+        │ CrossStreamAttn(dim=256, heads=4) │
+        │                                  │
+        │ Fb* = xAB(Fb, Fa)                │
+        │   Q=Fb (Texture)                 │
+        │   K,V=Fa (Color)                 │
+        │   Fb* = LayerNorm(Fb + Attn)     │
+        │                                  │
+        │ Fc* = xBC(Fc, Fb*)               │
+        │   Q=Fc (Morphology)              │
+        │   K,V=Fb* (Updated Texture)      │
+        │   Fc* = LayerNorm(Fc + Attn)     │
+        │                                  │
+        │ Multi-head (h=4, d_head=64)      │
+        │ Scale = 1/√64                    │
+        └─────────────┬────────────────────┘
+                      │
+                      ▼
+         ┌──────────────────────────────┐
+         │ STAGE 4A — Adaptive Weighting│
+         │                              │
+         │ Cat([Fa, Fb*, Fc*]) → [B,768,7,7]│
+         │ GAP → Linear(768 → 3) → Softmax │
+         │ w = [w₁,w₂,w₃]                 │
+         │                              │
+         │ F_w = w₁·Fa + w₂·Fb* + w₃·Fc* │
+         │     [B,256,7,7]               │
+         └────────────┬─────────────────┘
+                      │
+                      ▼
+         ┌──────────────────────────────┐
+         │ STAGE 4B — Dual Attention Gate│
+         │        (with RESIDUAL + Fw)   │
+         │                              │
+         │ F_ch = ChannelAttention(F_w) │
+         │ F_sp = SpatialAttention(F_w) │
+         │                              │
+         │ Cat([F_ch, F_sp]) → Conv2d(512→256,1×1) │
+         │ GroupNorm(16,256) → GELU      │
+         │                              │
+         │ F_g = GateProj + F_w          │
+         │       [B,256,7,7]             │
+         └────────────┬─────────────────┘
+                      │
+                      ▼
+         ┌──────────────────────────────┐
+         │ STAGE 5 — Multi-Pool Trunk   │
+         │                              │
+         │ R₁ = AdaptiveAvgPool(F_g) → Flatten │
+         │ R₂ = AdaptiveMaxPool(F_g)  → Flatten │
+         │ R₃ = Std(F_g, dim=[2,3])     │
+         │                              │
+         │ Concat([R₁,R₂,R₃]) → [B,768] │
+         │                              │
+         │ Linear(768 → 256) → GELU     │
+         │ Dropout(p=0.4)                │
+         │ Linear(256 → 128) → GELU     │
+         │ Dropout(p=0.3)                │
+         │                              │
+         │ z → [B,128]                   │
+         └──────┬─────────────┬──────────┘
+                │             │
+                ▼             ▼
+        ┌──────────────┐ ┌──────────────┐
+        │ CLASS HEAD   │ │ SEVERITY HEAD│
+        │ Linear(128→3)│ │ Linear(128→1)│
+        │ Softmax      │ │ Sigmoid      │
+        │              │ │              │
+        │ [Healthy,    │ │ [0.0 ~ 1.0]  │
+        │  Onycho,     │ │ (train-time  │
+        │  Psoriasis]  │ │  only)       │
+        └──────────────┘ └──────────────┘
+                │
+                ▼
+    ┌────────────────────────┐
+    │ LOSS (Full Model)      │
+    │                        │
+    │ L = L_CE + 0.1·L_sev + 0.05·L_div │
+    │                        │
+    │ L_CE  = Weighted CrossEntropy(logits, y) │
+    │ L_sev = MSE(sev_pred, (y>0).float()) │
+    │ L_div = -Σ wᵢ·log(wᵢ)  [entropy of stream weights] │
+    └────────────────────────┘
 ```
 
 ### Loss Function
